@@ -20,6 +20,39 @@ try:
     from PIL import Image
     import cv2
     import numpy as np
+    
+    # Configure Tesseract path for different environments
+    import streamlit as st
+    
+    def get_tesseract_path():
+        """Get Tesseract path for different environments."""
+        try:
+            # Try Streamlit secrets first
+            if hasattr(st, 'secrets') and 'TESSERACT_CMD' in st.secrets:
+                return st.secrets['TESSERACT_CMD']
+        except:
+            pass
+        
+        # Environment variable
+        tesseract_path = os.getenv('TESSERACT_CMD')
+        if tesseract_path:
+            return tesseract_path
+        
+        # Default paths for different systems
+        if os.name == 'nt':  # Windows
+            possible_paths = [
+                r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+                r'C:\Users\Tesseract-OCR\tesseract.exe'
+            ]
+            for path in possible_paths:
+                if os.path.exists(path):
+                    return path
+        else:  # Linux/Mac
+            return '/usr/bin/tesseract'
+        
+        return 'tesseract'  # Hope it's in PATH
+    
+    pytesseract.pytesseract.tesseract_cmd = get_tesseract_path()
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False

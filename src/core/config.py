@@ -6,18 +6,31 @@ import os
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+import streamlit as st
 
 # Load environment variables from .env file
 load_dotenv()
+
+def get_secret(key: str, default: str = None) -> str:
+    """Get secret from Streamlit secrets or environment variables."""
+    try:
+        # Try Streamlit secrets first (for cloud deployment)
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return st.secrets[key]
+    except:
+        pass
+    
+    # Fall back to environment variables
+    return os.getenv(key, default)
 
 
 class LLMConfig(BaseModel):
     """Configuration for Language Model providers."""
     openai_api_key: Optional[str] = Field(default=None)
     anthropic_api_key: Optional[str] = Field(default=None)
-    default_llm: str = Field(default="claude-3-sonnet")
+    default_llm: str = Field(default="claude-sonnet-4-20250514")
     temperature: float = Field(default=0.1, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=4000, gt=0)
+    max_tokens: int = Field(default=20000, gt=0)
     
     @property
     def has_openai_key(self) -> bool:
@@ -98,11 +111,11 @@ class Config(BaseModel):
         """Create configuration from environment variables."""
         return cls(
             llm=LLMConfig(
-                openai_api_key=os.getenv("OPENAI_API_KEY"),
-                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-                default_llm=os.getenv("DEFAULT_LLM", "claude-3-sonnet"),
-                temperature=float(os.getenv("LLM_TEMPERATURE", "0.1")),
-                max_tokens=int(os.getenv("LLM_MAX_TOKENS", "4000"))
+                openai_api_key=get_secret("OPENAI_API_KEY"),
+                anthropic_api_key=get_secret("ANTHROPIC_API_KEY"),
+                default_llm=get_secret("LLM_MODEL", "claude-sonnet-4-20250514"),
+                temperature=float(get_secret("LLM_TEMPERATURE", "0.1")),
+                max_tokens=int(get_secret("MAX_TOKENS", "20000"))
             ),
             vector_db=VectorDBConfig(
                 db_type=os.getenv("VECTOR_DB_TYPE", "chromadb"),
