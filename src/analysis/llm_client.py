@@ -3,11 +3,25 @@ LLM client for interacting with Claude (Anthropic) exclusively.
 """
 
 import asyncio
+import os
 from typing import Optional, Dict, Any, List
 import anthropic
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.core.config import get_config
+
+def get_anthropic_api_key() -> Optional[str]:
+    """Get Anthropic API key from various sources."""
+    # Try Streamlit secrets first
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'ANTHROPIC_API_KEY' in st.secrets:
+            return st.secrets['ANTHROPIC_API_KEY']
+    except:
+        pass
+    
+    # Try environment variable
+    return os.getenv('ANTHROPIC_API_KEY')
 
 
 class LLMClient:
@@ -26,13 +40,14 @@ class LLMClient:
         self.config = get_config()
         self.anthropic_client = None
         
-        # Initialize Claude client
-        if self.config.llm.has_anthropic_key:
-            self.anthropic_client = anthropic.AsyncAnthropic(
-                api_key=self.config.llm.anthropic_api_key
-            )
-        else:
+        # Get API key from multiple sources
+        api_key = get_anthropic_api_key()
+        
+        if not api_key:
             raise ValueError("Claude API key is required but not found in configuration")
+        
+        # Initialize Claude client
+        self.anthropic_client = anthropic.AsyncAnthropic(api_key=api_key)
         
         # Claude model mappings
         self.anthropic_models = [

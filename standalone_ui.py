@@ -15,6 +15,36 @@ import os
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+# Check for API key before importing other modules
+def check_api_key():
+    """Check if API key is available."""
+    api_key = None
+    
+    # Check Streamlit secrets
+    try:
+        if "ANTHROPIC_API_KEY" in st.secrets:
+            api_key = st.secrets["ANTHROPIC_API_KEY"]
+            os.environ["ANTHROPIC_API_KEY"] = api_key
+    except:
+        pass
+    
+    # Check environment variable
+    if not api_key:
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+    
+    return api_key
+
+# Check API key early
+if not check_api_key():
+    st.error("❌ **Claude API Key Required**")
+    st.error("Please configure your ANTHROPIC_API_KEY in Streamlit Cloud secrets.")
+    st.info("💡 **In Streamlit Cloud:**")
+    st.info("1. Go to your app settings")
+    st.info("2. Click on 'Secrets'") 
+    st.info("3. Add: ANTHROPIC_API_KEY = \"your_key_here\"")
+    st.info("4. Save and restart the app")
+    st.stop()
+
 try:
     from src.core.models import DocumentType, RiskLevel, AnalysisResult
     from src.core.config import get_config
@@ -39,6 +69,25 @@ st.set_page_config(
 def get_analyzers():
     """Initialize and cache the analysis components."""
     try:
+        # Check for API key in Streamlit secrets first
+        api_key = None
+        try:
+            if "ANTHROPIC_API_KEY" in st.secrets:
+                api_key = st.secrets["ANTHROPIC_API_KEY"]
+                os.environ["ANTHROPIC_API_KEY"] = api_key
+        except Exception:
+            pass
+        
+        # Fall back to environment variable
+        if not api_key:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+        
+        if not api_key:
+            st.error("❌ **Claude API Key Required**")
+            st.error("Please configure your ANTHROPIC_API_KEY in Streamlit Cloud secrets or environment variables.")
+            st.info("💡 In Streamlit Cloud: Settings → Secrets → Add ANTHROPIC_API_KEY")
+            st.stop()
+        
         config = get_config()
         parser = DocumentParser()
         legal_analyzer = LegalAnalyzer()
@@ -48,6 +97,8 @@ def get_analyzers():
         return parser, legal_analyzer, risk_assessor, redline_engine, config
     except Exception as e:
         st.error(f"Failed to initialize analyzers: {e}")
+        st.error("Failed to initialize application components.")
+        st.stop()
         return None, None, None, None, None
 
 def main():
